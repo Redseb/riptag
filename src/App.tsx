@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { MENU_ITEMS, moveSelection } from "./menu";
+import LibraryScreen from "./library/LibraryScreen";
 import "./App.css";
 
 type AppInfo = {
@@ -10,6 +11,7 @@ type AppInfo = {
 };
 
 function App() {
+  const [screen, setScreen] = useState<"menu" | "library">("menu");
   const [selected, setSelected] = useState(0);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const item = MENU_ITEMS[selected];
@@ -19,13 +21,15 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (screen !== "menu") return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") e.preventDefault();
+      if (e.key === "Enter" && MENU_ITEMS[selected].id === "library") setScreen("library");
       setSelected((i) => moveSelection(i, e.key, MENU_ITEMS.length));
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [screen, selected]);
 
   return (
     <div className="app">
@@ -36,41 +40,48 @@ function App() {
         </div>
       </header>
 
-      <main className="layout">
-        <ul className="menu">
-          {MENU_ITEMS.map((menuItem, i) => (
-            <li
-              key={menuItem.id}
-              className={i === selected ? "row selected" : "row"}
-              onClick={() => setSelected(i)}
-            >
-              <span className="marker" />
-              {menuItem.label}
-            </li>
-          ))}
-        </ul>
+      {screen === "library" ? (
+        <LibraryScreen onBack={() => setScreen("menu")} />
+      ) : (
+        <>
+          <main className="layout">
+            <ul className="menu">
+              {MENU_ITEMS.map((menuItem, i) => (
+                <li
+                  key={menuItem.id}
+                  className={i === selected ? "row selected" : "row"}
+                  onClick={() => setSelected(i)}
+                >
+                  <span className="marker" />
+                  {menuItem.label}
+                </li>
+              ))}
+            </ul>
 
-        <section className="panel">
-          <h2 className="panel-title">{item.label}</h2>
-          <div className="panel-body">
-            <p>{item.detail}</p>
-            {item.id === "system" && (
-              <dl className="data">
-                <dt>Version</dt>
-                <dd>{info?.version ?? "—"}</dd>
-                <dt>OS</dt>
-                <dd>{info?.os ?? "—"}</dd>
-                <dt>Arch</dt>
-                <dd>{info?.arch ?? "—"}</dd>
-              </dl>
-            )}
-          </div>
-        </section>
-      </main>
+            <section className="panel">
+              <h2 className="panel-title">{item.label}</h2>
+              <div className="panel-body">
+                <p>{item.detail}</p>
+                {item.id === "system" && (
+                  <dl className="data">
+                    <dt>Version</dt>
+                    <dd>{info?.version ?? "—"}</dd>
+                    <dt>OS</dt>
+                    <dd>{info?.os ?? "—"}</dd>
+                    <dt>Arch</dt>
+                    <dd>{info?.arch ?? "—"}</dd>
+                  </dl>
+                )}
+              </div>
+            </section>
+          </main>
 
-      <footer className="footer">
-        <span>↑↓ MOVE</span>
-      </footer>
+          <footer className="footer">
+            <span>↑↓ MOVE</span>
+            {item.id === "library" && <span>↵ SELECT</span>}
+          </footer>
+        </>
+      )}
     </div>
   );
 }
