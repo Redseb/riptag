@@ -3,7 +3,8 @@
 # Needs Accessibility and Screen Recording permission for the calling terminal app.
 #
 #   scripts/drive-app.sh start           launch `tauri dev` and wait for the window
-#   scripts/drive-app.sh key down down   press keys: up down left right enter esc
+#   scripts/drive-app.sh key down down   press keys: up down left right enter esc pgup pgdn
+#   scripts/drive-app.sh pick /some/dir  answer an open native folder dialog
 #   scripts/drive-app.sh shot out.png    screenshot the app window
 #   scripts/drive-app.sh stop            quit the app and its dev server
 set -u
@@ -37,6 +38,8 @@ key_code() {
     right) echo 124 ;;
     enter) echo 36 ;;
     esc) echo 53 ;;
+    pgup) echo 116 ;;
+    pgdn) echo 121 ;;
     *) echo "unknown key: $1" >&2; exit 1 ;;
   esac
 }
@@ -71,6 +74,21 @@ case "${1:-}" in
       sleep 0.2
     done
     ;;
+  pick)
+    require_app
+    focus
+    osascript \
+      -e 'tell application "System Events"' \
+      -e 'keystroke "g" using {command down, shift down}' \
+      -e 'delay 0.7' \
+      -e "keystroke \"${2:?usage: pick <path>}\"" \
+      -e 'delay 0.5' \
+      -e 'key code 36' \
+      -e 'delay 0.7' \
+      -e 'key code 36' \
+      -e 'end tell' || exit 1
+    sleep 0.5
+    ;;
   shot)
     require_app
     focus
@@ -87,7 +105,7 @@ case "${1:-}" in
     exit 0
     ;;
   *)
-    sed -n '2,8p' "$0"
+    sed -n '2,9p' "$0"
     exit 1
     ;;
 esac
