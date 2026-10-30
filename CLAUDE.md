@@ -8,7 +8,7 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Milestone 1 in progress. Fix Library scans a folder and shows a diagnosis per album (read-only). Next: write repaired copies, fetch lyrics, sync to device.
+Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder. Next: fetch lyrics, convert unsupported formats, tag cleanup beyond FLAC/MP3, sync to device.
 
 ## Stack
 
@@ -47,7 +47,7 @@ Milestone 1 in progress. Fix Library scans a folder and shows a diagnosis per al
 - All platform-specific code behind one interface: `listDrives()`, `readToc()`, `ripTrack()`, `ejectDisc()`, `findPlayerVolumes()`. UI never knows the OS
 - No hardcoded paths (`/Volumes/...` on Mac vs drive letters on Windows)
 - Device profiles are pluggable (Echo Mini first; Rockbox iPod etc. later)
-- Never write to the user's original files
+- Never write to the user's original files. Repair refuses an output folder overlapping the source, and never replaces a file already in the output
 
 ## macOS gotchas
 
