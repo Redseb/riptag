@@ -20,6 +20,19 @@ export type ScanResult = {
   albums: Album[];
 };
 
+export type RepairReport = {
+  output: string;
+  written: number;
+  tagsUntouched: number;
+  skipped: { file: string; reason: string }[];
+  remaining: Issue[];
+};
+
+export type RepairProgress = {
+  done: number;
+  total: number;
+};
+
 export type IssueGroup = {
   code: string;
   problem: string;
