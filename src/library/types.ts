@@ -28,6 +28,17 @@ export type RepairReport = {
   remaining: Issue[];
 };
 
+export type LyricsReport = {
+  saved: number;
+  alreadyHad: number;
+  plainOnly: number;
+  instrumental: number;
+  notFound: number;
+  stopped: boolean;
+  failed: { file: string; reason: string }[];
+  remaining: Issue[];
+};
+
 export type RepairProgress = {
   done: number;
   total: number;

@@ -18,6 +18,7 @@ pub struct TrackMeta {
     pub track: Option<u32>,
     pub disc: Option<u32>,
     pub disc_total: Option<u32>,
+    pub duration_secs: u64,
     pub cover: Option<CoverInfo>,
     /// An embedded picture exists but couldn't be read as an image.
     pub cover_unreadable: bool,
@@ -30,7 +31,10 @@ pub struct TrackMeta {
 /// Opens the file for reading only.
 pub fn read_track(path: &Path) -> Result<TrackMeta, String> {
     let tagged = lofty::read_from_path(path).map_err(|e| e.to_string())?;
-    let mut meta = TrackMeta::default();
+    let mut meta = TrackMeta {
+        duration_secs: tagged.properties().duration().as_secs(),
+        ..TrackMeta::default()
+    };
 
     if let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) {
         meta.title = tag.title().map(|s| s.into_owned());

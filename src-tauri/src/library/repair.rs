@@ -70,7 +70,7 @@ fn comparable(path: &Path) -> Vec<String> {
         .collect()
 }
 
-fn ensure_separate(source: &Path, output: &Path) -> Result<(), String> {
+pub(super) fn ensure_separate(source: &Path, output: &Path) -> Result<(), String> {
     let source = comparable(&resolve(source)?);
     let output = comparable(&resolve(output)?);
     if output.starts_with(&source) || source.starts_with(&output) {
