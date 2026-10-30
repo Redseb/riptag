@@ -8,14 +8,20 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Empty repo. Nothing scaffolded yet.
+Scaffolded: Tauri app with a minimal v3 menu example and CI. No product features yet; milestone 1 is next.
 
-## Stack (decided, not yet scaffolded)
+## Stack
 
 - **Tauri v2**: Rust backend, React + Vite + TypeScript frontend, plain CSS
 - Sidecar binaries, spawned as processes (not linked): `cd-paranoia` (libcdio), `flac`, `ffmpeg`
 - macOS first (Apple Silicon). Windows later, once all functionality works. No Linux
-- Open alternative: Expo desktop (react-native-macos). The minimal UI no longer rules it out. Confirm with Miko before scaffolding
+
+## Commands
+
+- `npm run tauri dev`: run the app
+- `npm test`, `npm run build`: frontend tests, type-check and bundle
+- `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`: run in `src-tauri/`. Needs `dist/` from `npm run build`
+- CI runs all of the above on macOS and Windows
 
 ## Milestones
 
