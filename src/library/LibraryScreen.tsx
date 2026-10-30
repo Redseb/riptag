@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { moveSelection } from "../menu";
-import { groupIssues, type IssueGroup, type RepairProgress, type RepairReport, type ScanResult } from "./types";
+import { groupIssues, type IssueGroup, type LyricsReport, type RepairProgress, type RepairReport, type ScanResult } from "./types";
 
 type Props = {
   onBack: () => void;
@@ -35,12 +35,14 @@ function LibraryScreen({ onBack }: Props) {
   const [progress, setProgress] = useState<RepairProgress | null>(null);
   const [repairing, setRepairing] = useState(false);
   const [report, setReport] = useState<RepairReport | null>(null);
+  const [fetching, setFetching] = useState(false);
+  const [lyrics, setLyrics] = useState<LyricsReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
   const selectedRow = useRef<HTMLLIElement>(null);
   const panelBody = useRef<HTMLDivElement>(null);
   const album = scan?.albums[selected];
-  const busy = scanning || repairing;
+  const busy = scanning || repairing || fetching;
 
   useEffect(() => {
     selectedRow.current?.scrollIntoView({ block: "nearest" });
@@ -54,6 +56,7 @@ function LibraryScreen({ onBack }: Props) {
       setScanning(true);
       setError(null);
       setReport(null);
+      setLyrics(null);
       try {
         setScan(await invoke<ScanResult>("scan_library", { path }));
         setSelected(0);
@@ -77,6 +80,7 @@ function LibraryScreen({ onBack }: Props) {
       setRepairing(true);
       setProgress(null);
       setError(null);
+      setLyrics(null);
       try {
         setReport(await invoke<RepairReport>("repair_library", { source, output, onProgress }));
       } catch (e) {
@@ -86,16 +90,39 @@ function LibraryScreen({ onBack }: Props) {
       }
     }
 
+    async function fetchLyrics(source: string, finished: RepairReport) {
+      const onProgress = new Channel<RepairProgress>();
+      onProgress.onmessage = setProgress;
+      setFetching(true);
+      setProgress(null);
+      setError(null);
+      try {
+        const result = await invoke<LyricsReport>("fetch_lyrics", {
+          source,
+          output: finished.output,
+          onProgress,
+        });
+        setLyrics(result);
+        setReport({ ...finished, remaining: result.remaining });
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setFetching(false);
+      }
+    }
+
     function onKeyDown(e: KeyboardEvent) {
-      if (scanning || repairing) return;
+      if (busy) return;
       if (e.key === "Escape") {
         if (report || error) {
           setReport(null);
+          setLyrics(null);
           setError(null);
         } else {
           onBack();
         }
       }
+      if (e.key.toLowerCase() === "l" && scan && report) fetchLyrics(scan.root, report);
       if (e.key.toLowerCase() === "r" && scan && scan.albums.length > 0) repair(scan.root);
       if (e.key === "Enter") chooseFolder();
       if (e.key === "PageDown" || e.key === "PageUp") {
@@ -110,7 +137,7 @@ function LibraryScreen({ onBack }: Props) {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [scan, scanning, repairing, report, error, onBack]);
+  }, [scan, busy, report, error, onBack]);
 
   return (
     <>
@@ -131,10 +158,11 @@ function LibraryScreen({ onBack }: Props) {
         </ul>
 
         <section className="panel">
-          <h2 className="panel-title">{report ? "Repair finished" : album ? album.name : "Fix library"}</h2>
+          <h2 className="panel-title">{fetching ? "Lyrics" : report ? "Repair finished" : album ? album.name : "Fix library"}</h2>
           <div ref={panelBody} className="panel-body scroll">
             {scanning && <p>Scanning…</p>}
             {repairing && <p>Repairing… {progress && `${progress.done} of ${progress.total}`}</p>}
+            {fetching && <p>Fetching lyrics… {progress && `${progress.done} of ${progress.total}`}</p>}
             {busy || !error ? null : <p>{error}</p>}
             {report && !busy && (
               <>
@@ -143,6 +171,28 @@ function LibraryScreen({ onBack }: Props) {
                   {report.written} written, {report.skipped.length} skipped
                 </p>
                 {report.tagsUntouched > 0 && <p>{report.tagsUntouched} copied without tag cleanup (not FLAC or MP3)</p>}
+                {lyrics && (
+                  <p>
+                    Lyrics: {lyrics.saved} saved, {lyrics.notFound} not found
+                    {lyrics.plainOnly > 0 && `, ${lyrics.plainOnly} unsynced only`}
+                    {lyrics.instrumental > 0 && `, ${lyrics.instrumental} instrumental`}
+                    {lyrics.alreadyHad > 0 && `, ${lyrics.alreadyHad} already had`}
+                  </p>
+                )}
+                {lyrics?.stopped && <p>Stopped after repeated errors. Press L to try the rest again.</p>}
+                {lyrics && lyrics.failed.length > 0 && (
+                  <ul className="diagnosis">
+                    {lyrics.failed.map((failed, i) => (
+                      <li key={i} className="issue">
+                        <span className="marker" />
+                        <div>
+                          <p className="path">{failed.file}</p>
+                          <p className="fix">{failed.reason}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {report.skipped.length > 0 && (
                   <ul className="diagnosis">
                     {report.skipped.map((skipped, i) => (
@@ -181,6 +231,7 @@ function LibraryScreen({ onBack }: Props) {
         <span>PGUP PGDN SCROLL</span>
         <span>↵ CHOOSE FOLDER</span>
         {scan && scan.albums.length > 0 && <span>R REPAIR</span>}
+        {report && <span>L LYRICS</span>}
         <span>ESC BACK</span>
       </footer>
     </>
