@@ -1,0 +1,38 @@
+/// What a device can handle. The scan and repair code only reads this, so a
+/// new device means a new profile, not new logic.
+pub struct DeviceProfile {
+    pub name: &'static str,
+    pub playable_extensions: &'static [&'static str],
+    /// Vorbis comment fields (FLAC, OGG) the device reads, uppercase.
+    pub vorbis_fields: &'static [&'static str],
+    /// ID3v2 frames (MP3) the device reads.
+    pub id3_frames: &'static [&'static str],
+    /// Largest cover side in pixels.
+    pub cover_size: u32,
+    pub max_path_chars: usize,
+}
+
+pub const ECHO_MINI: DeviceProfile = DeviceProfile {
+    name: "Echo Mini",
+    playable_extensions: &[
+        "mp3", "ogg", "m4a", "wma", "flac", "ape", "wav", "dsf", "dff",
+    ],
+    vorbis_fields: &[
+        "TITLE",
+        "ARTIST",
+        "ALBUMARTIST",
+        "ALBUM",
+        "TRACKNUMBER",
+        "TRACKTOTAL",
+        "DISCNUMBER",
+        "DISCTOTAL",
+        "DATE",
+        "GENRE",
+    ],
+    id3_frames: &[
+        "TIT2", "TPE1", "TPE2", "TALB", "TRCK", "TPOS", "TDRC", "TYER", "TCON", "APIC",
+    ],
+    // Unverified assumption, to be tested on the device.
+    cover_size: 600,
+    max_path_chars: 200,
+};

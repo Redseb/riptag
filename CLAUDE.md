@@ -8,12 +8,13 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Scaffolded: Tauri app with a minimal v3 menu example and CI. No product features yet; milestone 1 is next.
+Milestone 1 in progress. Fix Library scans a folder and shows a diagnosis per album (read-only). Next: write repaired copies, fetch lyrics, sync to device.
 
 ## Stack
 
 - **Tauri v2**: Rust backend, React + Vite + TypeScript frontend, plain CSS
 - Sidecar binaries, spawned as processes (not linked): `cd-paranoia` (libcdio), `flac`, `ffmpeg`
+- In-process Rust crates for metadata: `lofty` (tags), `image` (covers). Sidecars are for ripping and audio encoding only
 - macOS first (Apple Silicon). Windows later, once all functionality works. No Linux
 
 ## Commands
@@ -22,7 +23,7 @@ Scaffolded: Tauri app with a minimal v3 menu example and CI. No product features
 - `npm test`, `npm run build`: frontend tests, type-check and bundle
 - `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`: run in `src-tauri/`. Needs `dist/` from `npm run build`
 - CI runs all of the above on macOS and Windows
-- `scripts/drive-app.sh start|key|shot|stop`: launch the real app, press keys, screenshot its window. Use it to confirm UI changes, and read the screenshots. Needs Accessibility and Screen Recording for VS Code. The webview exposes no text to macOS accessibility, so screenshots are the only way to read the UI
+- `scripts/drive-app.sh start|key|pick|shot|stop`: launch the real app, press keys, screenshot its window. Use it to confirm UI changes, and read the screenshots. Needs Accessibility and Screen Recording for VS Code. The webview exposes no text to macOS accessibility, so screenshots are the only way to read the UI
 
 ## Milestones
 
