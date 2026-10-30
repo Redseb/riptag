@@ -1,0 +1,157 @@
+:root {
+  --ground: #dad4bc;
+  --ink: #3e3b33;
+  --panel: #e3deca;
+  --row: #cfc8ae;
+  --hairline: 1px solid var(--ink);
+  --font-heading: "Jost", sans-serif;
+  --font-data: "IBM Plex Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--ground);
+  /* Faint scanlines */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgb(62 59 51 / 0.04) 2px 3px
+  );
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: 13px;
+  cursor: default;
+  user-select: none;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 32px 16px;
+}
+
+.header h1 {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.divider {
+  position: relative;
+  margin: 12px 0 24px;
+  border-top: var(--hairline);
+}
+
+.diamond {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
+
+.layout {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 260px 1fr;
+  gap: 24px;
+  min-height: 0;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--row);
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.marker {
+  width: 8px;
+  height: 8px;
+  background: var(--ink);
+}
+
+.row.selected {
+  background: var(--ink);
+  color: var(--ground);
+}
+
+.row.selected .marker {
+  background: var(--ground);
+}
+
+.panel {
+  align-self: start;
+  border: var(--hairline);
+  background: var(--panel);
+}
+
+.panel-title {
+  padding: 6px 12px;
+  background: var(--ink);
+  color: var(--ground);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.panel-body {
+  padding: 16px 12px;
+  line-height: 1.6;
+}
+
+.data {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: var(--hairline);
+}
+
+.footer {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: var(--hairline);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
