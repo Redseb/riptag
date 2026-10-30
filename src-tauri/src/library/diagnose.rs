@@ -26,6 +26,10 @@ fn issue(code: &'static str, problem: &'static str, fix: &'static str) -> Issue 
     }
 }
 
+// Together these keep a generated path under the profile's limit.
+const MAX_FOLDER_CHARS: usize = 60;
+const MAX_TITLE_CHARS: usize = 50;
+
 const FAT_ILLEGAL: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
 /// Makes a single path component safe for FAT32/exFAT.
@@ -34,7 +38,21 @@ pub fn sanitize_component(name: &str) -> String {
         .nfc()
         .filter(|c| !FAT_ILLEGAL.contains(c) && !c.is_control())
         .collect();
-    cleaned.trim_matches(|c| c == ' ' || c == '.').to_owned()
+    let trimmed = cleaned.trim_matches(|c| c == ' ' || c == '.');
+    if trimmed.is_empty() {
+        "_".to_owned()
+    } else {
+        trimmed.to_owned()
+    }
+}
+
+/// Cuts a sanitised name to `max` characters, keeping it safe for FAT.
+fn shorten(name: String, max: usize) -> String {
+    if name.chars().count() <= max {
+        return name;
+    }
+    let cut: String = name.chars().take(max).collect();
+    cut.trim_end_matches([' ', '.']).to_owned()
 }
 
 /// The path a track should have, or `None` if its tags can't say.
@@ -49,15 +67,15 @@ pub fn expected_path(meta: &TrackMeta, extension: &str) -> Option<Vec<String>> {
         None => album.clone(),
     };
     let mut path = vec![
-        sanitize_component(artist),
-        sanitize_component(&album_folder),
+        shorten(sanitize_component(artist), MAX_FOLDER_CHARS),
+        shorten(sanitize_component(&album_folder), MAX_FOLDER_CHARS),
     ];
     if meta.disc_total.unwrap_or(1) > 1 {
         path.push(format!("CD{}", meta.disc.unwrap_or(1)));
     }
     path.push(format!(
         "{track:02} {}.{extension}",
-        sanitize_component(title)
+        shorten(sanitize_component(title), MAX_TITLE_CHARS)
     ));
     Some(path)
 }
@@ -414,6 +432,28 @@ mod tests {
     #[test]
     fn sanitize_strips_what_fat_cannot_store() {
         assert_eq!(sanitize_component(" AC/DC: Live? . "), "ACDC Live");
+    }
+
+    #[test]
+    fn sanitize_never_returns_an_empty_name() {
+        assert_eq!(sanitize_component("???"), "_");
+    }
+
+    #[test]
+    fn long_tags_produce_a_path_within_the_limit() {
+        let long = "x".repeat(300);
+        let meta = TrackMeta {
+            title: Some(long.clone()),
+            artist: Some(long.clone()),
+            album: Some(long),
+            track: Some(1),
+            disc: Some(1),
+            disc_total: Some(2),
+            ..TrackMeta::default()
+        };
+        let path = expected_path(&meta, "flac").unwrap();
+        let length: usize = path.iter().map(|c| c.chars().count() + 1).sum();
+        assert!(length <= ECHO_MINI.max_path_chars, "{length}");
     }
 
     #[test]
