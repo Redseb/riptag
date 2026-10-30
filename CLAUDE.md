@@ -22,6 +22,7 @@ Scaffolded: Tauri app with a minimal v3 menu example and CI. No product features
 - `npm test`, `npm run build`: frontend tests, type-check and bundle
 - `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`: run in `src-tauri/`. Needs `dist/` from `npm run build`
 - CI runs all of the above on macOS and Windows
+- `scripts/drive-app.sh start|key|shot|stop`: launch the real app, press keys, screenshot its window. Use it to confirm UI changes, and read the screenshots. Needs Accessibility and Screen Recording for VS Code. The webview exposes no text to macOS accessibility, so screenshots are the only way to read the UI
 
 ## Milestones
 
