@@ -530,7 +530,12 @@ mod tests {
     fn untagged_tracks_keep_their_folder_with_safe_names() {
         let dir = tempfile::tempdir().unwrap();
         let (source, output) = (dir.path().join("in"), dir.path().join("out"));
-        let album = source.join("Odd: Folder");
+        // Windows can't create this name, so the sanitising only matters elsewhere.
+        let album = source.join(if cfg!(windows) {
+            "Odd Folder"
+        } else {
+            "Odd: Folder"
+        });
         fs::create_dir_all(&album).unwrap();
         fs::copy(format!("{FIXTURES}/untagged.flac"), album.join("x.flac")).unwrap();
 
