@@ -1,0 +1,78 @@
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { MENU_ITEMS, moveSelection } from "./menu";
+import "./App.css";
+
+type AppInfo = {
+  version: string;
+  os: string;
+  arch: string;
+};
+
+function App() {
+  const [selected, setSelected] = useState(0);
+  const [info, setInfo] = useState<AppInfo | null>(null);
+  const item = MENU_ITEMS[selected];
+
+  useEffect(() => {
+    invoke<AppInfo>("get_app_info").then(setInfo).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") e.preventDefault();
+      setSelected((i) => moveSelection(i, e.key, MENU_ITEMS.length));
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return (
+    <div className="app">
+      <header className="header">
+        <h1>Riptag</h1>
+        <div className="divider">
+          <span className="diamond" />
+        </div>
+      </header>
+
+      <main className="layout">
+        <ul className="menu">
+          {MENU_ITEMS.map((menuItem, i) => (
+            <li
+              key={menuItem.id}
+              className={i === selected ? "row selected" : "row"}
+              onClick={() => setSelected(i)}
+            >
+              <span className="marker" />
+              {menuItem.label}
+            </li>
+          ))}
+        </ul>
+
+        <section className="panel">
+          <h2 className="panel-title">{item.label}</h2>
+          <div className="panel-body">
+            <p>{item.detail}</p>
+            {item.id === "system" && (
+              <dl className="data">
+                <dt>Version</dt>
+                <dd>{info?.version ?? "—"}</dd>
+                <dt>OS</dt>
+                <dd>{info?.os ?? "—"}</dd>
+                <dt>Arch</dt>
+                <dd>{info?.arch ?? "—"}</dd>
+              </dl>
+            )}
+          </div>
+        </section>
+      </main>
+
+      <footer className="footer">
+        <span>↑↓ MOVE</span>
+      </footer>
+    </div>
+  );
+}
+
+export default App;
