@@ -8,7 +8,7 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder. Next: fetch lyrics, convert unsupported formats, tag cleanup beyond FLAC/MP3, sync to device.
+Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, then fetches synced lyrics from LRCLIB into them. Next: convert unsupported formats (AIFF first), tag cleanup beyond FLAC/MP3, sync to device.
 
 ## Stack
 
@@ -37,7 +37,7 @@ Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album
 - **Format:** FLAC 16/44.1, no transcode (CD source). MP3 V0 optional for the 8 GB internal storage
 - **Cover art:** square JPEG only. Centre-crop, ~600×600, baseline (non-progressive). Embed + write `cover.jpg` in the album folder. Baseline/size are unverified assumptions; test on device
 - **Tags:** whitelist only. Unsupported ID3v2 frames can hide supported ones. MP3 → **ID3v2.3** (v2.4 reportedly breaks art)
-- **Lyrics:** `.lrc` next to each track, same base name (fetch from LRCLIB)
+- **Lyrics:** `.lrc` next to each track, same base name (fetch from LRCLIB, synced only: unsynced text isn't written, as a `.lrc` needs timestamps)
 - **Filesystem:** FAT32/exFAT (no NTFS). Strip illegal chars, keep paths short, normalise Unicode (Polish/Belarusian diacritics)
 - **Layout:** `Artist/Year - Album/NN Title.flac`. Device browses by folder, so the layout is the UI. Multi-disc: `CD1/CD2` subfolders or a disc prefix
 - **Unknown:** whether the player reads ReplayGain
