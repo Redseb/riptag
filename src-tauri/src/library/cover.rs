@@ -1,3 +1,4 @@
+use super::profile::DeviceProfile;
 use image::{ImageFormat, ImageReader};
 use std::io::Cursor;
 
@@ -22,6 +23,13 @@ pub fn inspect_cover(bytes: &[u8]) -> Option<CoverInfo> {
         width,
         height,
     })
+}
+
+pub fn is_compliant(cover: &CoverInfo, profile: &DeviceProfile) -> bool {
+    cover.is_jpeg
+        && !cover.progressive
+        && cover.width == cover.height
+        && cover.width <= profile.cover_size
 }
 
 /// Walks the JPEG markers to the start-of-frame, which says how it's encoded.

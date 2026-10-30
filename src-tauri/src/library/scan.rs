@@ -1,4 +1,4 @@
-use super::cover::inspect_cover;
+use super::cover::{CoverInfo, inspect_cover};
 use super::diagnose::{Issue, diagnose_album, diagnose_track};
 use super::profile::DeviceProfile;
 use super::track::{TrackMeta, read_track};
@@ -31,7 +31,7 @@ pub struct Album {
     pub issues: Vec<Issue>,
 }
 
-fn lowercase_extension(path: &Path) -> Option<String> {
+pub(super) fn lowercase_extension(path: &Path) -> Option<String> {
     path.extension()
         .and_then(OsStr::to_str)
         .map(str::to_lowercase)
@@ -48,7 +48,7 @@ fn is_hidden(name: &OsStr) -> bool {
     name.to_string_lossy().starts_with('.')
 }
 
-fn relative_components(path: &Path, root: &Path) -> Vec<String> {
+pub(super) fn relative_components(path: &Path, root: &Path) -> Vec<String> {
     path.strip_prefix(root)
         .unwrap_or(path)
         .iter()
@@ -56,12 +56,19 @@ fn relative_components(path: &Path, root: &Path) -> Vec<String> {
         .collect()
 }
 
-fn read_folder_cover(folder: &Path) -> Option<Option<super::cover::CoverInfo>> {
-    let entries = fs::read_dir(folder).ok()?;
-    let path = entries.flatten().map(|e| e.path()).find(|p| {
-        p.file_name()
-            .is_some_and(|n| n.eq_ignore_ascii_case("cover.jpg"))
-    })?;
+pub(super) fn find_folder_cover(folder: &Path) -> Option<PathBuf> {
+    fs::read_dir(folder)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| {
+            p.file_name()
+                .is_some_and(|n| n.eq_ignore_ascii_case("cover.jpg"))
+        })
+}
+
+fn read_folder_cover(folder: &Path) -> Option<Option<CoverInfo>> {
+    let path = find_folder_cover(folder)?;
     Some(fs::read(path).ok().and_then(|bytes| inspect_cover(&bytes)))
 }
 
@@ -96,12 +103,8 @@ fn diagnose_file(path: &Path, root: &Path, profile: &DeviceProfile) -> Vec<Issue
     }
 }
 
-/// Walks `root` without changing anything. Each folder holding audio is an album.
-pub fn scan_library(root: &Path, profile: &DeviceProfile) -> Result<ScanResult, String> {
-    if !root.is_dir() {
-        return Err(format!("Not a folder: {}", root.display()));
-    }
-
+/// Every folder under `root` holding audio, with its tracks in name order.
+pub(super) fn find_albums(root: &Path, profile: &DeviceProfile) -> BTreeMap<PathBuf, Vec<PathBuf>> {
     let mut folders: BTreeMap<PathBuf, Vec<PathBuf>> = BTreeMap::new();
     let walker = WalkDir::new(root)
         .sort_by_file_name()
@@ -114,6 +117,16 @@ pub fn scan_library(root: &Path, profile: &DeviceProfile) -> Result<ScanResult, 
             folders.entry(folder).or_default().push(path.to_path_buf());
         }
     }
+    folders
+}
+
+/// Walks `root` without changing anything. Each folder holding audio is an album.
+pub fn scan_library(root: &Path, profile: &DeviceProfile) -> Result<ScanResult, String> {
+    if !root.is_dir() {
+        return Err(format!("Not a folder: {}", root.display()));
+    }
+
+    let folders = find_albums(root, profile);
 
     let mut track_count = 0;
     let albums = folders
