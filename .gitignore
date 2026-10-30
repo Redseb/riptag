@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Node / Vite
+node_modules/
+dist/
+*.log
+.env
+.env.*
+
+# Rust / Tauri
+target/
+src-tauri/target/
+src-tauri/gen/
+
+# Sidecar binaries (fetched/built, not committed)
+src-tauri/binaries/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
