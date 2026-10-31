@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { MENU_ITEMS, moveSelection } from "./menu";
+import Footer from "./Footer";
 import LibraryScreen from "./library/LibraryScreen";
 import "./App.css";
 
@@ -37,6 +38,7 @@ function App() {
         <h1>Riptag</h1>
         <div className="divider">
           <span className="diamond" />
+          <span className="divider-end" />
         </div>
       </header>
 
@@ -59,7 +61,9 @@ function App() {
             </ul>
 
             <section className="panel">
-              <h2 className="panel-title">{item.label}</h2>
+              <h2 className="panel-title">
+                <span>{item.label}</span>
+              </h2>
               <div className="panel-body">
                 <p>{item.detail}</p>
                 {item.id === "system" && (
@@ -76,10 +80,7 @@ function App() {
             </section>
           </main>
 
-          <footer className="footer">
-            <span>↑↓ MOVE</span>
-            {item.id === "library" && <span>↵ SELECT</span>}
-          </footer>
+          <Footer hints={item.id === "library" ? [["↑↓", "MOVE"], ["↵", "SELECT"]] : [["↑↓", "MOVE"]]} />
         </>
       )}
     </div>
