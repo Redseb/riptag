@@ -2,7 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { moveSelection } from "../menu";
-import { groupIssues, type IssueGroup, type LyricsReport, type RepairProgress, type RepairReport, type ScanResult } from "./types";
+import {
+  formatBytes,
+  groupIssues,
+  type IssueGroup,
+  type LyricsReport,
+  type PlayerVolume,
+  type RepairProgress,
+  type RepairReport,
+  type ScanResult,
+  type SyncReport,
+} from "./types";
 
 type Props = {
   onBack: () => void;
@@ -37,12 +47,16 @@ function LibraryScreen({ onBack }: Props) {
   const [report, setReport] = useState<RepairReport | null>(null);
   const [fetching, setFetching] = useState(false);
   const [lyrics, setLyrics] = useState<LyricsReport | null>(null);
+  const [players, setPlayers] = useState<PlayerVolume[] | null>(null);
+  const [player, setPlayer] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [synced, setSynced] = useState<SyncReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
   const selectedRow = useRef<HTMLLIElement>(null);
   const panelBody = useRef<HTMLDivElement>(null);
   const album = scan?.albums[selected];
-  const busy = scanning || repairing || fetching;
+  const busy = scanning || repairing || fetching || syncing;
 
   useEffect(() => {
     selectedRow.current?.scrollIntoView({ block: "nearest" });
@@ -57,6 +71,7 @@ function LibraryScreen({ onBack }: Props) {
       setError(null);
       setReport(null);
       setLyrics(null);
+      setSynced(null);
       try {
         setScan(await invoke<ScanResult>("scan_library", { path }));
         setSelected(0);
@@ -81,6 +96,7 @@ function LibraryScreen({ onBack }: Props) {
       setProgress(null);
       setError(null);
       setLyrics(null);
+      setSynced(null);
       try {
         setReport(await invoke<RepairReport>("repair_library", { source, output, onProgress }));
       } catch (e) {
@@ -96,6 +112,7 @@ function LibraryScreen({ onBack }: Props) {
       setFetching(true);
       setProgress(null);
       setError(null);
+      setSynced(null);
       try {
         const result = await invoke<LyricsReport>("fetch_lyrics", {
           source,
@@ -111,18 +128,62 @@ function LibraryScreen({ onBack }: Props) {
       }
     }
 
+    async function choosePlayer() {
+      setError(null);
+      setSynced(null);
+      try {
+        const found = await invoke<PlayerVolume[]>("find_player_volumes");
+        if (found.length === 0) {
+          setError("No player found. Connect it and press S again.");
+        } else {
+          setPlayer(0);
+          setPlayers(found);
+        }
+      } catch (e) {
+        setError(String(e));
+      }
+    }
+
+    async function syncTo(volume: PlayerVolume, finished: RepairReport) {
+      const onProgress = new Channel<RepairProgress>();
+      onProgress.onmessage = setProgress;
+      setPlayers(null);
+      setSyncing(true);
+      setProgress(null);
+      setError(null);
+      try {
+        setSynced(await invoke<SyncReport>("sync_to_device", { output: finished.output, volume: volume.path, onProgress }));
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setSyncing(false);
+      }
+    }
+
     function onKeyDown(e: KeyboardEvent) {
       if (busy) return;
+      // Nothing is written until the player is confirmed here.
+      if (players) {
+        if (e.key === "Escape") setPlayers(null);
+        if (e.key === "Enter" && report) syncTo(players[player], report);
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          setPlayer((i) => moveSelection(i, e.key, players.length));
+        }
+        return;
+      }
       if (e.key === "Escape") {
         if (report || error) {
           setReport(null);
           setLyrics(null);
+          setSynced(null);
           setError(null);
         } else {
           onBack();
         }
       }
       if (e.key.toLowerCase() === "l" && scan && report) fetchLyrics(scan.root, report);
+      if (e.key.toLowerCase() === "s" && report) choosePlayer();
       if (e.key.toLowerCase() === "r" && scan && scan.albums.length > 0) repair(scan.root);
       if (e.key === "Enter") chooseFolder();
       if (e.key === "PageDown" || e.key === "PageUp") {
@@ -137,7 +198,11 @@ function LibraryScreen({ onBack }: Props) {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [scan, busy, report, error, onBack]);
+  }, [scan, busy, report, error, players, player, onBack]);
+
+  const syncRows = synced
+    ? [...synced.failed, ...synced.alreadyThere.map((file) => ({ file, reason: "Already on the player, left as it is" }))]
+    : [];
 
   return (
     <>
@@ -158,13 +223,51 @@ function LibraryScreen({ onBack }: Props) {
         </ul>
 
         <section className="panel">
-          <h2 className="panel-title">{fetching ? "Lyrics" : report ? "Repair finished" : album ? album.name : "Fix library"}</h2>
+          <h2 className="panel-title">{players ? "Copy to player" : syncing ? "Syncing" : synced ? "Sync finished" : fetching ? "Lyrics" : report ? "Repair finished" : album ? album.name : "Fix library"}</h2>
           <div ref={panelBody} className="panel-body scroll">
             {scanning && <p>Scanning…</p>}
             {repairing && <p>Repairing… {progress && `${progress.done} of ${progress.total}`}</p>}
             {fetching && <p>Fetching lyrics… {progress && `${progress.done} of ${progress.total}`}</p>}
+            {syncing && <p>Copying… {progress && `${progress.done} of ${progress.total}`}</p>}
             {busy || !error ? null : <p>{error}</p>}
-            {report && !busy && (
+            {players && report && (
+              <>
+                <p>Copy this folder to the player? Nothing on it gets replaced or removed.</p>
+                <p className="path">{report.output}</p>
+                <ul className="menu">
+                  {players.map((volume, i) => (
+                    <li key={volume.path} className={i === player ? "row selected" : "row"}>
+                      <span className="marker" />
+                      <span className="row-label">{volume.name}</span>
+                      <span className="row-count">{formatBytes(volume.freeBytes)} free</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="path">{players[player].path}</p>
+              </>
+            )}
+            {synced && !busy && !players && (
+              <>
+                <p>
+                  {synced.copied} copied to {synced.device}, {synced.alreadyThere.length} already there, {synced.failed.length} failed
+                </p>
+                {synced.stopped && <p>The player was disconnected. Reconnect it and press S to copy the rest.</p>}
+                {syncRows.length > 0 && (
+                  <ul className="diagnosis">
+                    {syncRows.map((row, i) => (
+                      <li key={i} className="issue">
+                        <span className="marker" />
+                        <div>
+                          <p className="path">{row.file}</p>
+                          <p className="fix">{row.reason}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+            {report && !busy && !players && !synced && (
               <>
                 <p className="path">{report.output}</p>
                 <p>
@@ -228,12 +331,23 @@ function LibraryScreen({ onBack }: Props) {
       </main>
 
       <footer className="footer">
-        <span>↑↓ MOVE</span>
-        <span>PGUP PGDN SCROLL</span>
-        <span>↵ CHOOSE FOLDER</span>
-        {scan && scan.albums.length > 0 && <span>R REPAIR</span>}
-        {report && <span>L LYRICS</span>}
-        <span>ESC BACK</span>
+        {players ? (
+          <>
+            <span>↑↓ MOVE</span>
+            <span>↵ COPY</span>
+            <span>ESC CANCEL</span>
+          </>
+        ) : (
+          <>
+            <span>↑↓ MOVE</span>
+            <span>PGUP PGDN SCROLL</span>
+            <span>↵ CHOOSE FOLDER</span>
+            {scan && scan.albums.length > 0 && <span>R REPAIR</span>}
+            {report && <span>L LYRICS</span>}
+            {report && <span>S SYNC</span>}
+            <span>ESC BACK</span>
+          </>
+        )}
       </footer>
     </>
   );

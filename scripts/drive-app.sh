@@ -3,7 +3,7 @@
 # Needs Accessibility and Screen Recording permission for the calling terminal app.
 #
 #   scripts/drive-app.sh start           launch `tauri dev` and wait for the window
-#   scripts/drive-app.sh key down down   press keys: up down left right enter esc pgup pgdn r l
+#   scripts/drive-app.sh key down down   press keys: up down left right enter esc pgup pgdn r l s
 #   scripts/drive-app.sh pick /some/dir  answer an open native folder dialog
 #   scripts/drive-app.sh shot out.png    screenshot the app window
 #   scripts/drive-app.sh stop            quit the app and its dev server
@@ -40,6 +40,7 @@ key_code() {
     enter) echo 36 ;;
     esc) echo 53 ;;
     r) echo 15 ;;
+    s) echo 1 ;;
     l) echo 37 ;;
     pgup) echo 116 ;;
     pgdn) echo 121 ;;
