@@ -1,6 +1,7 @@
 use super::cover::{CoverInfo, inspect_cover};
 use super::diagnose::{Issue, diagnose_album, diagnose_track};
 use super::profile::DeviceProfile;
+use super::repair::RepairProgress;
 use super::track::{TrackMeta, read_track};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -120,21 +121,34 @@ pub(super) fn find_albums(root: &Path, profile: &DeviceProfile) -> BTreeMap<Path
     folders
 }
 
-/// Walks `root` without changing anything. Each folder holding audio is an album.
 pub fn scan_library(root: &Path, profile: &DeviceProfile) -> Result<ScanResult, String> {
+    scan_with_progress(root, profile, |_| {})
+}
+
+/// Walks `root` without changing anything. Each folder holding audio is an album.
+pub fn scan_with_progress(
+    root: &Path,
+    profile: &DeviceProfile,
+    mut on_progress: impl FnMut(RepairProgress),
+) -> Result<ScanResult, String> {
     if !root.is_dir() {
         return Err(format!("Not a folder: {}", root.display()));
     }
 
     let folders = find_albums(root, profile);
 
+    let total = folders.values().map(Vec::len).sum();
     let mut track_count = 0;
     let albums = folders
         .into_iter()
         .map(|(folder, tracks)| {
-            track_count += tracks.len();
             let mut issues = diagnose_album(profile, read_folder_cover(&folder));
             for track in &tracks {
+                track_count += 1;
+                on_progress(RepairProgress {
+                    done: track_count,
+                    total,
+                });
                 let file = track.file_name().map(|n| n.to_string_lossy().into_owned());
                 for mut found in diagnose_file(track, root, profile) {
                     found.file = file.clone();
@@ -244,6 +258,18 @@ mod tests {
         fs::write(dir.path().join("broken.flac"), "not really flac").unwrap();
         let result = scan_library(dir.path(), &ECHO_MINI).unwrap();
         assert_eq!(scan_codes(&result.albums[0], "broken.flac"), ["unreadable"]);
+    }
+
+    #[test]
+    fn reports_progress_per_track() {
+        let dir = tempfile::tempdir().unwrap();
+        copy_fixture("sample.flac", &dir.path().join("One/a.flac"));
+        copy_fixture("sample.mp3", &dir.path().join("Two/b.mp3"));
+        let mut seen = Vec::new();
+
+        scan_with_progress(dir.path(), &ECHO_MINI, |p| seen.push((p.done, p.total))).unwrap();
+
+        assert_eq!(seen, [(1, 2), (2, 2)]);
     }
 
     #[test]

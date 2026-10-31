@@ -26,10 +26,17 @@ fn get_app_info() -> AppInfo {
 
 // Async so a large library doesn't block the window while it's read.
 #[tauri::command]
-async fn scan_library(path: PathBuf) -> Result<library::ScanResult, String> {
-    tauri::async_runtime::spawn_blocking(move || library::scan_library(&path, &library::ECHO_MINI))
-        .await
-        .map_err(|e| e.to_string())?
+async fn scan_library(
+    path: PathBuf,
+    on_progress: Channel<library::RepairProgress>,
+) -> Result<library::ScanResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        library::scan_with_progress(&path, &library::ECHO_MINI, |progress| {
+            let _ = on_progress.send(progress);
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

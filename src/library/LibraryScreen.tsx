@@ -67,13 +67,16 @@ function LibraryScreen({ onBack }: Props) {
     async function chooseFolder() {
       const path = await open({ directory: true, title: "Choose a music folder" });
       if (!path) return;
+      const onProgress = new Channel<RepairProgress>();
+      onProgress.onmessage = setProgress;
       setScanning(true);
+      setProgress(null);
       setError(null);
       setReport(null);
       setLyrics(null);
       setSynced(null);
       try {
-        setScan(await invoke<ScanResult>("scan_library", { path }));
+        setScan(await invoke<ScanResult>("scan_library", { path, onProgress }));
         setSelected(0);
       } catch (e) {
         setScan(null);
@@ -225,7 +228,7 @@ function LibraryScreen({ onBack }: Props) {
         <section className="panel">
           <h2 className="panel-title">{players ? "Copy to player" : syncing ? "Syncing" : synced ? "Sync finished" : fetching ? "Lyrics" : report ? "Repair finished" : album ? album.name : "Fix library"}</h2>
           <div ref={panelBody} className="panel-body scroll">
-            {scanning && <p>Scanning…</p>}
+            {scanning && <p>Scanning… {progress && `${progress.done} of ${progress.total}`}</p>}
             {repairing && <p>Repairing… {progress && `${progress.done} of ${progress.total}`}</p>}
             {fetching && <p>Fetching lyrics… {progress && `${progress.done} of ${progress.total}`}</p>}
             {syncing && <p>Copying… {progress && `${progress.done} of ${progress.total}`}</p>}
