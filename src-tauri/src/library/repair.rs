@@ -604,14 +604,17 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (source, output) = (dir.path().join("in"), dir.path().join("out"));
         fs::create_dir_all(&source).unwrap();
-        // Tags parse, but the sound data is cut off before ffmpeg can decode any.
-        let bytes = fs::read(format!("{FIXTURES}/untagged.aiff")).unwrap();
-        fs::write(source.join("x.aiff"), &bytes[..12]).unwrap();
+        // Floating point detail FLAC can't hold, so the check after encoding fails.
+        fs::copy(format!("{FIXTURES}/float.aiff"), source.join("x.aiff")).unwrap();
 
         let report = run(&source, &output);
 
         assert_eq!(report.written, 0);
-        assert_eq!(report.skipped.len(), 1);
+        assert!(
+            report.skipped[0].reason.contains("didn't match"),
+            "{:?}",
+            report.skipped
+        );
         assert!(snapshot(&output).is_empty());
     }
 
