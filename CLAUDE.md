@@ -8,13 +8,13 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, converting AIFF to FLAC, then fetches synced lyrics from LRCLIB into them. Next: sync to device, bundling the `ffmpeg` sidecar, tag cleanup beyond FLAC/MP3.
+Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, converting AIFF to FLAC, then fetches synced lyrics from LRCLIB into them. Next: sync to device, tag cleanup beyond FLAC/MP3.
 
 ## Stack
 
 - **Tauri v2**: Rust backend, React + Vite + TypeScript frontend, plain CSS
 - Sidecar binaries, spawned as processes (not linked): `cd-paranoia` (libcdio), `flac`, `ffmpeg`
-- Sidecars are looked up beside the app, then on `PATH`. Not bundled yet, so development and tests need `ffmpeg` installed
+- Sidecars are looked up beside the app, then on `PATH`. Development and tests use an installed `ffmpeg`; only `npm run bundle` needs and packages the sidecar, built by `scripts/build-ffmpeg.sh` (static, LGPL, Mac only so far)
 - In-process Rust crates for metadata: `lofty` (tags), `image` (covers). Sidecars are for ripping and audio encoding only
 - macOS first (Apple Silicon). Windows later, once all functionality works. No Linux
 
@@ -22,6 +22,7 @@ Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album
 
 - `npm run tauri dev`: run the app
 - `npm test`, `npm run build`: frontend tests, type-check and bundle
+- `npm run bundle`: build the packaged app with the `ffmpeg` sidecar
 - `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`: run in `src-tauri/`. Needs `dist/` from `npm run build`
 - CI runs all of the above on macOS and Windows
 - `scripts/drive-app.sh start|key|pick|shot|stop`: launch the real app, press keys, screenshot its window. Use it to confirm UI changes, and read the screenshots. Needs Accessibility and Screen Recording for VS Code. The webview exposes no text to macOS accessibility, so screenshots are the only way to read the UI

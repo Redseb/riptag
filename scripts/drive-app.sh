@@ -7,12 +7,13 @@
 #   scripts/drive-app.sh pick /some/dir  answer an open native folder dialog
 #   scripts/drive-app.sh shot out.png    screenshot the app window
 #   scripts/drive-app.sh stop            quit the app and its dev server
+# Set RIPTAG_APP_MATCH to drive a packaged app, e.g. "MacOS/riptag", launched separately.
 set -u
 
 cd "$(dirname "$0")/.."
 LOG="${TMPDIR:-/tmp}/riptag-dev.log"
 PID_FILE="${TMPDIR:-/tmp}/riptag-dev.pid"
-APP_MATCH="target/debug/riptag"
+APP_MATCH="${RIPTAG_APP_MATCH:-target/debug/riptag}"
 DEV_PORT=1420
 
 app_pid() { pgrep -f "$APP_MATCH" | head -1; }
