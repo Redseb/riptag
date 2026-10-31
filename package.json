@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "bundle": "scripts/build-ffmpeg.sh && tauri build --config src-tauri/tauri.bundle.json",
     "test": "vitest run"
   },
   "dependencies": {

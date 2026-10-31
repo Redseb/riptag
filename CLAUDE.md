@@ -8,12 +8,13 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, then fetches synced lyrics from LRCLIB into them. Next: convert unsupported formats (AIFF first), tag cleanup beyond FLAC/MP3, sync to device.
+Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, converting AIFF to FLAC, then fetches synced lyrics from LRCLIB into them, and copies them to a detected player. Next: tag cleanup beyond FLAC/MP3, then the milestone 2 UI shell.
 
 ## Stack
 
 - **Tauri v2**: Rust backend, React + Vite + TypeScript frontend, plain CSS
 - Sidecar binaries, spawned as processes (not linked): `cd-paranoia` (libcdio), `flac`, `ffmpeg`
+- Sidecars are looked up beside the app, then on `PATH`. Development and tests use an installed `ffmpeg`; only `npm run bundle` needs and packages the sidecar, built by `scripts/build-ffmpeg.sh` (static, LGPL, Mac only so far)
 - In-process Rust crates for metadata: `lofty` (tags), `image` (covers). Sidecars are for ripping and audio encoding only
 - macOS first (Apple Silicon). Windows later, once all functionality works. No Linux
 
@@ -21,6 +22,7 @@ Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album
 
 - `npm run tauri dev`: run the app
 - `npm test`, `npm run build`: frontend tests, type-check and bundle
+- `npm run bundle`: build the packaged app with the `ffmpeg` sidecar
 - `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`: run in `src-tauri/`. Needs `dist/` from `npm run build`
 - CI runs all of the above on macOS and Windows
 - `scripts/drive-app.sh start|key|pick|shot|stop`: launch the real app, press keys, screenshot its window. Use it to confirm UI changes, and read the screenshots. Needs Accessibility and Screen Recording for VS Code. The webview exposes no text to macOS accessibility, so screenshots are the only way to read the UI
@@ -35,7 +37,7 @@ Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album
 ## Echo Mini output profile
 
 - **Format:** FLAC 16/44.1, no transcode (CD source). MP3 V0 optional for the 8 GB internal storage
-- **Cover art:** square JPEG only. Centre-crop, ~600×600, baseline (non-progressive). Embed + write `cover.jpg` in the album folder. Baseline/size are unverified assumptions; test on device
+- **Cover art:** square JPEG only. Centre-crop, ~600×600, baseline (non-progressive). Embed + write `cover.jpg` in the album folder. A 452×452 baseline cover works on the device (2026-10-31); whether larger, up to 600, or progressive ones work is untested
 - **Tags:** whitelist only. Unsupported ID3v2 frames can hide supported ones. MP3 → **ID3v2.3** (v2.4 reportedly breaks art)
 - **Lyrics:** `.lrc` next to each track, same base name (fetch from LRCLIB, synced only: unsynced text isn't written, as a `.lrc` needs timestamps)
 - **Filesystem:** FAT32/exFAT (no NTFS). Strip illegal chars, keep paths short, normalise Unicode (Polish/Belarusian diacritics)
@@ -47,6 +49,7 @@ Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album
 - All platform-specific code behind one interface: `listDrives()`, `readToc()`, `ripTrack()`, `ejectDisc()`, `findPlayerVolumes()`. UI never knows the OS
 - No hardcoded paths (`/Volumes/...` on Mac vs drive letters on Windows)
 - Device profiles are pluggable (Echo Mini first; Rockbox iPod etc. later)
+- Sync never replaces or removes anything on the player, and only writes to a volume that's detected and confirmed in the UI. Test it against a FAT32 disk image named `ECHO MINI` (`hdiutil create -fs "MS-DOS FAT32"`), not the real player
 - Never write to the user's original files. Repair refuses an output folder overlapping the source, and never replaces a file already in the output
 
 ## macOS gotchas

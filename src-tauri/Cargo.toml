@@ -27,6 +27,7 @@ unicode-normalization = "0.1.26"
 tauri-plugin-dialog = "2.8.4"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp"] }
 ureq = { version = "3.5.0", features = ["json"] }
+sysinfo = { version = "0.40.1", default-features = false, features = ["disk"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

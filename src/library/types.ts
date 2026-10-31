@@ -23,6 +23,7 @@ export type ScanResult = {
 export type RepairReport = {
   output: string;
   written: number;
+  converted: number;
   tagsUntouched: number;
   skipped: { file: string; reason: string }[];
   remaining: Issue[];
@@ -39,6 +40,20 @@ export type LyricsReport = {
   remaining: Issue[];
 };
 
+export type PlayerVolume = {
+  name: string;
+  path: string;
+  freeBytes: number;
+};
+
+export type SyncReport = {
+  device: string;
+  copied: number;
+  alreadyThere: string[];
+  failed: { file: string; reason: string }[];
+  stopped: boolean;
+};
+
 export type RepairProgress = {
   done: number;
   total: number;
@@ -52,6 +67,10 @@ export type IssueGroup = {
   /** Differing details across the group, such as tag names. */
   details: string[];
 };
+
+export function formatBytes(bytes: number): string {
+  return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
+}
 
 /** Collapses per-file issues so an album shows each problem once. */
 export function groupIssues(issues: Issue[]): IssueGroup[] {

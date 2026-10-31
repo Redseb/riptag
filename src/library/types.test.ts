@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupIssues, type Issue } from "./types";
+import { formatBytes, groupIssues, type Issue } from "./types";
 
 function issue(code: string, file: string, detail: string | null = null): Issue {
   return { code, problem: `${code} problem`, fix: `${code} fix`, file, detail };
@@ -17,5 +17,12 @@ describe("groupIssues", () => {
   it("collects distinct details", () => {
     const groups = groupIssues([issue("a", "1", "X"), issue("a", "2", "X"), issue("a", "3", "Y")]);
     expect(groups[0].details).toEqual(["X", "Y"]);
+  });
+});
+
+describe("formatBytes", () => {
+  it("uses MB below a gigabyte and GB above", () => {
+    expect(formatBytes(240_000_000)).toBe("240 MB");
+    expect(formatBytes(6_624_718_848)).toBe("6.6 GB");
   });
 });

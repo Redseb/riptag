@@ -1,3 +1,4 @@
+use super::convert::convert_to_flac;
 use super::cover::{inspect_cover, is_compliant};
 use super::diagnose::{Issue, expected_path, sanitize_component};
 use super::profile::DeviceProfile;
@@ -36,6 +37,8 @@ pub struct SkippedFile {
 pub struct RepairReport {
     pub output: String,
     pub written: usize,
+    /// How many of those were converted to FLAC.
+    pub converted: usize,
     /// Written with new paths only, as tags are only rewritten for FLAC and MP3.
     pub tags_untouched: usize,
     pub skipped: Vec<SkippedFile>,
@@ -188,7 +191,8 @@ fn open_rw(path: &Path) -> Result<File, String> {
 }
 
 /// Builds the copy under a hidden name and renames it last, so an interrupted
-/// run never leaves a half-written track looking finished.
+/// run never leaves a half-written track looking finished. `extension` is the
+/// copy's, so one differing from the source's means converting.
 fn write_copy(
     source: &Path,
     dest: &Path,
@@ -202,7 +206,11 @@ fn write_copy(
     let temp = parent.join(format!(".{}.part", name.to_string_lossy()));
 
     let result = (|| {
-        fs::copy(source, &temp).map_err(|e| e.to_string())?;
+        if lowercase_extension(source).as_deref() == Some(extension) {
+            fs::copy(source, &temp).map_err(|e| e.to_string())?;
+        } else {
+            convert_to_flac(source, &temp)?;
+        }
         match extension {
             "flac" => rewrite_flac(&temp, cover, profile)?,
             "mp3" => rewrite_mp3(&temp, cover, profile)?,
@@ -241,6 +249,7 @@ pub fn repair_library(
     let total = albums.values().map(Vec::len).sum();
     let mut done = 0;
     let mut written = 0;
+    let mut converted = 0;
     let mut tags_untouched = 0;
     let mut skipped = Vec::new();
     // On FAT, names differing only by case or normalisation are the same file.
@@ -261,8 +270,14 @@ pub fn repair_library(
             done += 1;
             on_progress(RepairProgress { done, total });
 
-            let extension = lowercase_extension(track).unwrap_or_default();
-            if !profile.playable_extensions.contains(&extension.as_str()) {
+            let source_extension = lowercase_extension(track).unwrap_or_default();
+            let converting = profile.convert_to_flac.contains(&source_extension.as_str());
+            let extension = if converting {
+                "flac"
+            } else {
+                source_extension.as_str()
+            };
+            if !converting && !profile.playable_extensions.contains(&extension) {
                 skip(format!("{extension} needs converting, not built yet"));
                 continue;
             }
@@ -273,8 +288,17 @@ pub fn repair_library(
                     continue;
                 }
             };
-            let relative = expected_path(&meta, &extension)
-                .unwrap_or_else(|| components.iter().map(|c| sanitize_component(c)).collect());
+            let relative = expected_path(&meta, extension).unwrap_or_else(|| {
+                let mut kept: Vec<String> =
+                    components.iter().map(|c| sanitize_component(c)).collect();
+                if let Some(name) = kept.last_mut() {
+                    *name = Path::new(name)
+                        .with_extension(extension)
+                        .to_string_lossy()
+                        .into_owned();
+                }
+                kept
+            });
             let dest: PathBuf = output.join(relative.iter().collect::<PathBuf>());
 
             if !claimed.insert(comparable(&dest)) {
@@ -288,11 +312,14 @@ pub fn repair_library(
                 skip(format!("Already in the output: {}", relative.join("/")));
                 continue;
             }
-            if let Err(error) = write_copy(track, &dest, &extension, cover.as_deref(), profile) {
+            if let Err(error) = write_copy(track, &dest, extension, cover.as_deref(), profile) {
                 skip(format!("Couldn't write: {error}"));
                 continue;
             }
             written += 1;
+            if converting {
+                converted += 1;
+            }
             if extension != "flac" && extension != "mp3" {
                 tags_untouched += 1;
             }
@@ -327,6 +354,7 @@ pub fn repair_library(
     Ok(RepairReport {
         output: output.to_string_lossy().into_owned(),
         written,
+        converted,
         tags_untouched,
         skipped,
         remaining,
@@ -524,6 +552,70 @@ mod tests {
 
         assert_eq!(report.written, 0);
         assert_eq!(report.skipped.len(), 2);
+    }
+
+    #[test]
+    fn converts_aiff_to_a_clean_flac_and_leaves_the_source_alone() {
+        let dir = tempfile::tempdir().unwrap();
+        let (source, output) = (dir.path().join("in"), dir.path().join("out"));
+        let album = source.join("Some Folder");
+        fs::create_dir_all(&album).unwrap();
+        fs::copy(format!("{FIXTURES}/sample.aiff"), album.join("a.aiff")).unwrap();
+        fs::write(
+            album.join("cover.jpg"),
+            image_bytes(800, 600, ImageFormat::Jpeg),
+        )
+        .unwrap();
+        fs::write(album.join("a.lrc"), "[00:00.00]la").unwrap();
+        let before = snapshot(&source);
+
+        let report = run(&source, &output);
+
+        assert_eq!(snapshot(&source), before);
+        assert_eq!((report.written, report.converted), (1, 1));
+        assert_eq!(report.tags_untouched, 0);
+        assert!(report.skipped.is_empty(), "{:?}", report.skipped);
+        let copy = output.join("Fixture/2014 - Tests/01 Sample.flac");
+        let meta = read_track(&copy).unwrap();
+        assert_eq!(meta.title.as_deref(), Some("Sample"));
+        assert_eq!(meta.track, Some(1));
+        assert_eq!(meta.year.as_deref(), Some("2014"));
+        assert!(meta.cover.is_some());
+        assert!(!meta.vorbis_fields.contains(&"COMPOSER".to_owned()));
+        assert!(copy.with_extension("lrc").exists());
+        assert!(report.remaining.is_empty(), "{:?}", report.remaining);
+    }
+
+    #[test]
+    fn untagged_aiff_keeps_its_name_as_flac() {
+        let dir = tempfile::tempdir().unwrap();
+        let (source, output) = (dir.path().join("in"), dir.path().join("out"));
+        fs::create_dir_all(&source).unwrap();
+        fs::copy(format!("{FIXTURES}/untagged.aiff"), source.join("x.aiff")).unwrap();
+
+        let report = run(&source, &output);
+
+        assert_eq!(report.converted, 1, "{:?}", report.skipped);
+        assert!(output.join("x.flac").exists());
+    }
+
+    #[test]
+    fn a_failed_conversion_is_reported_and_leaves_nothing_behind() {
+        let dir = tempfile::tempdir().unwrap();
+        let (source, output) = (dir.path().join("in"), dir.path().join("out"));
+        fs::create_dir_all(&source).unwrap();
+        // Floating point detail FLAC can't hold, so the check after encoding fails.
+        fs::copy(format!("{FIXTURES}/float.aiff"), source.join("x.aiff")).unwrap();
+
+        let report = run(&source, &output);
+
+        assert_eq!(report.written, 0);
+        assert!(
+            report.skipped[0].reason.contains("didn't match"),
+            "{:?}",
+            report.skipped
+        );
+        assert!(snapshot(&output).is_empty());
     }
 
     #[test]
