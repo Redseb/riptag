@@ -75,9 +75,12 @@ async fn fetch_lyrics(
     .map_err(|e| e.to_string())?
 }
 
+// Async as the footer polls this, and a stalled disk mustn't block the window.
 #[tauri::command]
-fn find_player_volumes() -> Result<Vec<library::PlayerVolume>, String> {
-    library::find_player_volumes(&library::ECHO_MINI)
+async fn find_player_volumes() -> Result<Vec<library::PlayerVolume>, String> {
+    tauri::async_runtime::spawn_blocking(|| library::find_player_volumes(&library::ECHO_MINI))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 // The volume is looked up again, so only a detected player can be written to.

@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { moveSelection } from "../menu";
+import Footer, { type Hint } from "../Footer";
 import {
+  albumLabel,
   formatBytes,
   groupIssues,
+  groupSkipped,
+  issueTag,
   type IssueGroup,
   type LyricsReport,
   type PlayerVolume,
@@ -24,7 +28,7 @@ function IssueList({ groups }: { groups: IssueGroup[] }) {
     <ul className="diagnosis">
       {groups.map((group) => (
         <li key={group.code} className="issue">
-          <span className="marker" />
+          <span className="chip">{issueTag(group.code)}</span>
           <div>
             <p>
               {group.problem}
@@ -36,6 +40,52 @@ function IssueList({ groups }: { groups: IssueGroup[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function SkippedList({ skipped }: { skipped: { file: string; reason: string }[] }) {
+  if (skipped.length === 0) return null;
+  return (
+    <ul className="diagnosis">
+      {groupSkipped(skipped).map((group) => (
+        <li key={group.reason} className="issue">
+          <span className="marker" />
+          <div>
+            <p>
+              {group.reason}
+              {group.files.length > 1 && ` ×${group.files.length}`}
+            </p>
+            {group.files.slice(0, 3).map((file) => (
+              <p key={file} className="fix">
+                {file}
+              </p>
+            ))}
+            {group.files.length > 3 && <p className="fix">and {group.files.length - 3} more</p>}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Working({ label, progress }: { label: string; progress: RepairProgress | null }) {
+  const percent = progress && progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  return (
+    <div className="working">
+      <p className="working-label">
+        {label}
+        <span className="cursor" aria-hidden="true">
+          _
+        </span>
+      </p>
+      <div className="bar">
+        <span style={{ width: `${percent}%` }} />
+      </div>
+      <p className="working-count">
+        <span>{progress ? `${progress.done} of ${progress.total}` : "Starting"}</span>
+        <span>{percent}%</span>
+      </p>
+    </div>
   );
 }
 
@@ -203,6 +253,39 @@ function LibraryScreen({ onBack }: Props) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [scan, busy, report, error, players, player, onBack]);
 
+  const showAlbum = !busy && !error && !report && !players;
+  const title = players
+    ? "Copy to player"
+    : syncing
+      ? "Syncing"
+      : scanning
+        ? "Scanning"
+        : repairing
+          ? "Repairing"
+          : fetching
+            ? "Lyrics"
+            : synced
+              ? "Sync finished"
+              : report
+                ? "Repair finished"
+                : album
+                  ? "Diagnosis"
+                  : "Fix library";
+  const hints: Hint[] = players
+    ? [
+        ["↑↓", "MOVE"],
+        ["↵", "COPY"],
+        ["ESC", "CANCEL"],
+      ]
+    : [
+        ["↑↓", "ALBUM"],
+        ["PG↑↓", "SCROLL"],
+        ["↵", "FOLDER"],
+        ...(scan && scan.albums.length > 0 ? ([["R", "REPAIR"]] as Hint[]) : []),
+        ...(report ? ([["L", "LYRICS"], ["S", "SYNC"]] as Hint[]) : []),
+        ["ESC", "BACK"],
+      ];
+  const flagged = scan?.albums.filter((a) => a.issues.length > 0).length ?? 0;
   const syncRows = synced
     ? [...synced.failed, ...synced.alreadyThere.map((file) => ({ file, reason: "Already on the player, left as it is" }))]
     : [];
@@ -210,7 +293,14 @@ function LibraryScreen({ onBack }: Props) {
   return (
     <>
       <main className="layout">
-        <ul className="menu scroll">
+        <div className="list">
+          {scan && (
+            <p className="list-head">
+              <span>{scan.albums.length} {scan.albums.length === 1 ? "FOLDER" : "FOLDERS"}</span>
+              <span>{flagged} FLAGGED</span>
+            </p>
+          )}
+          <ul className="menu scroll">
           {scan?.albums.map((a, i) => (
             <li
               key={a.path}
@@ -219,19 +309,27 @@ function LibraryScreen({ onBack }: Props) {
               onClick={() => setSelected(i)}
             >
               <span className="marker" />
-              <span className="row-label">{a.name}</span>
+              <span className="row-label" title={a.name}>{albumLabel(a.name)}</span>
               <span className="row-count">{a.issues.length || "OK"}</span>
             </li>
           ))}
         </ul>
+        </div>
 
         <section className="panel">
-          <h2 className="panel-title">{players ? "Copy to player" : syncing ? "Syncing" : synced ? "Sync finished" : fetching ? "Lyrics" : report ? "Repair finished" : album ? album.name : "Fix library"}</h2>
+          <h2 className="panel-title">
+            <span>{title}</span>
+            {showAlbum && album && (
+              <span className="panel-count">
+                {album.issues.length} {album.issues.length === 1 ? "ISSUE" : "ISSUES"}
+              </span>
+            )}
+          </h2>
           <div ref={panelBody} className="panel-body scroll">
-            {scanning && <p>Scanning… {progress && `${progress.done} of ${progress.total}`}</p>}
-            {repairing && <p>Repairing… {progress && `${progress.done} of ${progress.total}`}</p>}
-            {fetching && <p>Fetching lyrics… {progress && `${progress.done} of ${progress.total}`}</p>}
-            {syncing && <p>Copying… {progress && `${progress.done} of ${progress.total}`}</p>}
+            {scanning && <Working label="Scanning" progress={progress} />}
+            {repairing && <Working label="Repairing" progress={progress} />}
+            {fetching && <Working label="Fetching lyrics" progress={progress} />}
+            {syncing && <Working label="Copying" progress={progress} />}
             {busy || !error ? null : <p>{error}</p>}
             {players && report && (
               <>
@@ -255,19 +353,7 @@ function LibraryScreen({ onBack }: Props) {
                   {synced.copied} copied to {synced.device}, {synced.alreadyThere.length} already there, {synced.failed.length} failed
                 </p>
                 {synced.stopped && <p>The player was disconnected. Reconnect it and press S to copy the rest.</p>}
-                {syncRows.length > 0 && (
-                  <ul className="diagnosis">
-                    {syncRows.map((row, i) => (
-                      <li key={i} className="issue">
-                        <span className="marker" />
-                        <div>
-                          <p className="path">{row.file}</p>
-                          <p className="fix">{row.reason}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <SkippedList skipped={syncRows} />
               </>
             )}
             {report && !busy && !players && !synced && (
@@ -287,32 +373,8 @@ function LibraryScreen({ onBack }: Props) {
                   </p>
                 )}
                 {lyrics?.stopped && <p>Stopped after repeated errors. Press L to try the rest again.</p>}
-                {lyrics && lyrics.failed.length > 0 && (
-                  <ul className="diagnosis">
-                    {lyrics.failed.map((failed, i) => (
-                      <li key={i} className="issue">
-                        <span className="marker" />
-                        <div>
-                          <p className="path">{failed.file}</p>
-                          <p className="fix">{failed.reason}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {report.skipped.length > 0 && (
-                  <ul className="diagnosis">
-                    {report.skipped.map((skipped, i) => (
-                      <li key={i} className="issue">
-                        <span className="marker" />
-                        <div>
-                          <p className="path">{skipped.file}</p>
-                          <p className="fix">{skipped.reason}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {lyrics && <SkippedList skipped={lyrics.failed} />}
+                <SkippedList skipped={report.skipped} />
                 {report.remaining.length === 0 && <p className="diagnosis">The output has no remaining problems.</p>}
                 <IssueList groups={groupIssues(report.remaining)} />
               </>
@@ -321,6 +383,7 @@ function LibraryScreen({ onBack }: Props) {
             {!busy && !error && !report && scan && !album && <p>No audio files in {scan.root}.</p>}
             {!busy && !error && !report && album && (
               <>
+                <p className="album-title">{albumLabel(album.name)}</p>
                 <p className="path">{album.path}</p>
                 <p>
                   {album.trackCount} {album.trackCount === 1 ? "track" : "tracks"}, checked for {scan?.profile}
@@ -333,25 +396,7 @@ function LibraryScreen({ onBack }: Props) {
         </section>
       </main>
 
-      <footer className="footer">
-        {players ? (
-          <>
-            <span>↑↓ MOVE</span>
-            <span>↵ COPY</span>
-            <span>ESC CANCEL</span>
-          </>
-        ) : (
-          <>
-            <span>↑↓ MOVE</span>
-            <span>PGUP PGDN SCROLL</span>
-            <span>↵ CHOOSE FOLDER</span>
-            {scan && scan.albums.length > 0 && <span>R REPAIR</span>}
-            {report && <span>L LYRICS</span>}
-            {report && <span>S SYNC</span>}
-            <span>ESC BACK</span>
-          </>
-        )}
-      </footer>
+      <Footer hints={hints} />
     </>
   );
 }
