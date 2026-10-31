@@ -23,6 +23,7 @@ export type ScanResult = {
 export type RepairReport = {
   output: string;
   written: number;
+  converted: number;
   tagsUntouched: number;
   skipped: { file: string; reason: string }[];
   remaining: Issue[];
