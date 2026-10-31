@@ -8,7 +8,7 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, converting AIFF to FLAC, then fetches synced lyrics from LRCLIB into them, and copies them to a detected player. Next: tag cleanup beyond FLAC/MP3, then the milestone 2 UI shell.
+Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, converting AIFF to FLAC, then fetches synced lyrics from LRCLIB into them, and copies them to a detected player. Tags and covers are cleaned for FLAC, MP3, OGG and M4A. Next: the milestone 2 UI shell.
 
 ## Stack
 

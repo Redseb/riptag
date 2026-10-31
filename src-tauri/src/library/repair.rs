@@ -16,6 +16,7 @@ use lofty::mpeg::MpegFile;
 use lofty::ogg::OggPictureStorage;
 use lofty::picture::{MimeType, Picture, PictureType};
 use lofty::prelude::*;
+use lofty::tag::Tag;
 use serde::Serialize;
 use std::collections::{BTreeSet, HashSet};
 use std::fs::{self, File, OpenOptions};
@@ -39,7 +40,7 @@ pub struct RepairReport {
     pub written: usize,
     /// How many of those were converted to FLAC.
     pub converted: usize,
-    /// Written with new paths only, as tags are only rewritten for FLAC and MP3.
+    /// Written with new paths only, as tags are only rewritten for FLAC, MP3, OGG and M4A.
     pub tags_untouched: usize,
     pub skipped: Vec<SkippedFile>,
     /// What a scan of the output folder still flags.
@@ -182,6 +183,32 @@ fn rewrite_mp3(path: &Path, cover: Option<&[u8]>, profile: &DeviceProfile) -> Re
         .map_err(|e| e.to_string())
 }
 
+/// For formats without a dedicated rewrite. Goes through lofty's common tag, so
+/// fields it has no common name for are dropped too.
+fn rewrite_common(
+    path: &Path,
+    cover: Option<&[u8]>,
+    profile: &DeviceProfile,
+) -> Result<(), String> {
+    let mut file = open_rw(path)?;
+    // From the contents, as a temporary name says nothing about the format.
+    let mut tagged = lofty::read_from(&mut file).map_err(|e| e.to_string())?;
+    let tag_type = tagged.primary_tag_type();
+    let mut tag = tagged
+        .remove(tag_type)
+        .unwrap_or_else(|| Tag::new(tag_type));
+    tag.retain(|item| profile.tag_items.contains(&item.key()));
+    while !tag.pictures().is_empty() {
+        tag.remove_picture(0);
+    }
+    if let Some(cover) = cover {
+        tag.push_picture(cover_picture(cover));
+    }
+    file.rewind().map_err(|e| e.to_string())?;
+    tag.save_to(&mut file, WriteOptions::new())
+        .map_err(|e| e.to_string())
+}
+
 fn open_rw(path: &Path) -> Result<File, String> {
     OpenOptions::new()
         .read(true)
@@ -214,6 +241,7 @@ fn write_copy(
         match extension {
             "flac" => rewrite_flac(&temp, cover, profile)?,
             "mp3" => rewrite_mp3(&temp, cover, profile)?,
+            "ogg" | "m4a" => rewrite_common(&temp, cover, profile)?,
             _ => {}
         }
         fs::rename(&temp, dest).map_err(|e| e.to_string())
@@ -320,7 +348,7 @@ pub fn repair_library(
             if converting {
                 converted += 1;
             }
-            if extension != "flac" && extension != "mp3" {
+            if !["flac", "mp3", "ogg", "m4a"].contains(&extension) {
                 tags_untouched += 1;
             }
 
@@ -363,6 +391,7 @@ pub fn repair_library(
 
 #[cfg(test)]
 mod tests {
+    use super::super::convert::audio_md5;
     use super::super::profile::ECHO_MINI;
     use super::*;
     use image::{ImageFormat, RgbImage};
@@ -584,6 +613,63 @@ mod tests {
         assert!(!meta.vorbis_fields.contains(&"COMPOSER".to_owned()));
         assert!(copy.with_extension("lrc").exists());
         assert!(report.remaining.is_empty(), "{:?}", report.remaining);
+    }
+
+    fn cleans_a_copy(fixture: &str, extension: &str) {
+        let dir = tempfile::tempdir().unwrap();
+        let (source, output) = (dir.path().join("in"), dir.path().join("out"));
+        fs::create_dir_all(&source).unwrap();
+        let original = source.join(format!("a.{extension}"));
+        fs::copy(format!("{FIXTURES}/{fixture}"), &original).unwrap();
+        fs::write(
+            source.join("cover.jpg"),
+            image_bytes(800, 600, ImageFormat::Jpeg),
+        )
+        .unwrap();
+        let before = read_track(&original).unwrap();
+        assert!(
+            before
+                .other_items
+                .iter()
+                .any(|key| !ECHO_MINI.tag_items.contains(key)),
+            "the fixture should have fields to remove: {:?}",
+            before.other_items
+        );
+        let snapshot_before = snapshot(&source);
+
+        let report = run(&source, &output);
+
+        assert_eq!(snapshot(&source), snapshot_before);
+        assert_eq!(
+            (report.written, report.tags_untouched),
+            (1, 0),
+            "{:?}",
+            report.skipped
+        );
+        let copy = output.join(format!("Fixture/2014 - Tests/01 Sample.{extension}"));
+        let meta = read_track(&copy).unwrap();
+        assert_eq!(meta.title.as_deref(), Some("Sample"));
+        assert_eq!(meta.artist.as_deref(), Some("Fixture"));
+        assert_eq!(meta.album.as_deref(), Some("Tests"));
+        assert_eq!(meta.track, Some(1));
+        assert_eq!(meta.year.as_deref(), Some("2014"));
+        let cover = meta.cover.expect("cover embedded");
+        assert!(cover.is_jpeg && !cover.progressive);
+        assert_eq!((cover.width, cover.height), (600, 600));
+        assert_eq!(meta.duration_secs, before.duration_secs);
+        let codes: Vec<_> = report.remaining.iter().map(|i| i.code).collect();
+        assert_eq!(codes, ["lyrics_missing"], "{:?}", report.remaining);
+        assert_eq!(audio_md5(&original).unwrap(), audio_md5(&copy).unwrap());
+    }
+
+    #[test]
+    fn cleans_ogg_tags_and_cover_keeping_the_audio() {
+        cleans_a_copy("sample.ogg", "ogg");
+    }
+
+    #[test]
+    fn cleans_m4a_tags_and_cover_keeping_the_audio() {
+        cleans_a_copy("sample.m4a", "m4a");
     }
 
     #[test]

@@ -274,7 +274,7 @@ function LibraryScreen({ onBack }: Props) {
                   {report.written} written, {report.skipped.length} skipped
                 </p>
                 {report.converted > 0 && <p>{report.converted} converted to FLAC</p>}
-                {report.tagsUntouched > 0 &&<p>{report.tagsUntouched} copied without tag cleanup (not FLAC or MP3)</p>}
+                {report.tagsUntouched > 0 &&<p>{report.tagsUntouched} copied without tag cleanup (not FLAC, MP3, OGG or M4A)</p>}
                 {lyrics && (
                   <p>
                     Lyrics: {lyrics.saved} saved, {lyrics.notFound} not found
