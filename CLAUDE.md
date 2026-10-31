@@ -8,7 +8,7 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, converting AIFF to FLAC, then fetches synced lyrics from LRCLIB into them. Next: sync to device, tag cleanup beyond FLAC/MP3.
+Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, converting AIFF to FLAC, then fetches synced lyrics from LRCLIB into them, and copies them to a detected player. Next: tag cleanup beyond FLAC/MP3, then the milestone 2 UI shell.
 
 ## Stack
 
@@ -49,6 +49,7 @@ Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album
 - All platform-specific code behind one interface: `listDrives()`, `readToc()`, `ripTrack()`, `ejectDisc()`, `findPlayerVolumes()`. UI never knows the OS
 - No hardcoded paths (`/Volumes/...` on Mac vs drive letters on Windows)
 - Device profiles are pluggable (Echo Mini first; Rockbox iPod etc. later)
+- Sync never replaces or removes anything on the player, and only writes to a volume that's detected and confirmed in the UI. Test it against a FAT32 disk image named `ECHO MINI` (`hdiutil create -fs "MS-DOS FAT32"`), not the real player
 - Never write to the user's original files. Repair refuses an output folder overlapping the source, and never replaces a file already in the output
 
 ## macOS gotchas
