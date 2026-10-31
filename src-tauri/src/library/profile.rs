@@ -36,7 +36,7 @@ pub const ECHO_MINI: DeviceProfile = DeviceProfile {
     id3_frames: &[
         "TIT2", "TPE1", "TPE2", "TALB", "TRCK", "TPOS", "TDRC", "TYER", "TCON", "APIC",
     ],
-    // Unverified assumption, to be tested on the device.
+    // 452 px is confirmed on the device. 600 is still an assumption.
     cover_size: 600,
     max_path_chars: 200,
 };

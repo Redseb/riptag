@@ -37,7 +37,7 @@ Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album
 ## Echo Mini output profile
 
 - **Format:** FLAC 16/44.1, no transcode (CD source). MP3 V0 optional for the 8 GB internal storage
-- **Cover art:** square JPEG only. Centre-crop, ~600×600, baseline (non-progressive). Embed + write `cover.jpg` in the album folder. Baseline/size are unverified assumptions; test on device
+- **Cover art:** square JPEG only. Centre-crop, ~600×600, baseline (non-progressive). Embed + write `cover.jpg` in the album folder. A 452×452 baseline cover works on the device (2026-10-31); whether larger, up to 600, or progressive ones work is untested
 - **Tags:** whitelist only. Unsupported ID3v2 frames can hide supported ones. MP3 → **ID3v2.3** (v2.4 reportedly breaks art)
 - **Lyrics:** `.lrc` next to each track, same base name (fetch from LRCLIB, synced only: unsynced text isn't written, as a `.lrc` needs timestamps)
 - **Filesystem:** FAT32/exFAT (no NTFS). Strip illegal chars, keep paths short, normalise Unicode (Polish/Belarusian diacritics)
