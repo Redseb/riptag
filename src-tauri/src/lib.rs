@@ -68,6 +68,31 @@ async fn fetch_lyrics(
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+fn find_player_volumes() -> Result<Vec<library::PlayerVolume>, String> {
+    library::find_player_volumes(&library::ECHO_MINI)
+}
+
+// The volume is looked up again, so only a detected player can be written to.
+#[tauri::command]
+async fn sync_to_device(
+    output: PathBuf,
+    volume: PathBuf,
+    on_progress: Channel<library::RepairProgress>,
+) -> Result<library::SyncReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let found = library::find_player_volumes(&library::ECHO_MINI)?
+            .into_iter()
+            .find(|player| player.path == volume)
+            .ok_or("That player isn't connected")?;
+        library::sync_to_device(&output, &found, |progress| {
+            let _ = on_progress.send(progress);
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -76,7 +101,9 @@ pub fn run() {
             get_app_info,
             scan_library,
             repair_library,
-            fetch_lyrics
+            fetch_lyrics,
+            find_player_volumes,
+            sync_to_device
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
