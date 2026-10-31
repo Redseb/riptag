@@ -8,12 +8,13 @@ Desktop app that rips audio CDs and outputs files formatted for the **FiiO Snows
 
 ## Status
 
-Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, then fetches synced lyrics from LRCLIB into them. Next: convert unsupported formats (AIFF first), tag cleanup beyond FLAC/MP3, sync to device.
+Milestone 1 in progress. Fix Library scans a folder, shows a diagnosis per album and writes repaired copies to a separate folder, converting AIFF to FLAC, then fetches synced lyrics from LRCLIB into them. Next: sync to device, bundling the `ffmpeg` sidecar, tag cleanup beyond FLAC/MP3.
 
 ## Stack
 
 - **Tauri v2**: Rust backend, React + Vite + TypeScript frontend, plain CSS
 - Sidecar binaries, spawned as processes (not linked): `cd-paranoia` (libcdio), `flac`, `ffmpeg`
+- Sidecars are looked up beside the app, then on `PATH`. Not bundled yet, so development and tests need `ffmpeg` installed
 - In-process Rust crates for metadata: `lofty` (tags), `image` (covers). Sidecars are for ripping and audio encoding only
 - macOS first (Apple Silicon). Windows later, once all functionality works. No Linux
 
