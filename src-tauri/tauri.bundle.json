@@ -1,5 +1,10 @@
 {
   "bundle": {
-    "externalBin": ["binaries/ffmpeg"]
+    "externalBin": ["binaries/ffmpeg"],
+    "resources": {
+      "../LICENSE": "licenses/LICENSE",
+      "../licenses/ffmpeg-NOTICE.txt": "licenses/ffmpeg-NOTICE.txt",
+      "../licenses/ffmpeg-LGPL-2.1.txt": "licenses/ffmpeg-LGPL-2.1.txt"
+    }
   }
 }

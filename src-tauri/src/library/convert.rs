@@ -43,7 +43,7 @@ fn ffmpeg(args: &[&std::ffi::OsStr]) -> Result<Output, String> {
 
 /// A checksum of the decoded samples. Decoded to 32 bits, as ffmpeg's default
 /// of 16 would hide differences in higher bit depths.
-fn audio_md5(path: &Path) -> Result<String, String> {
+pub(super) fn audio_md5(path: &Path) -> Result<String, String> {
     let output = ffmpeg(&[
         "-i".as_ref(),
         path.as_os_str(),

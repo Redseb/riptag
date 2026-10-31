@@ -22,10 +22,12 @@ pub struct TrackMeta {
     pub cover: Option<CoverInfo>,
     /// An embedded picture exists but couldn't be read as an image.
     pub cover_unreadable: bool,
-    /// Native field names. Only read for FLAC and MP3 so far.
+    /// Native field names. Only read for FLAC and MP3.
     pub vorbis_fields: Vec<String>,
     pub id3_frames: Vec<String>,
     pub id3v24: bool,
+    /// Fields of formats with no native list above. Only read for OGG and M4A.
+    pub other_items: Vec<ItemKey>,
 }
 
 /// Opens the file for reading only.
@@ -51,6 +53,15 @@ pub fn read_track(path: &Path) -> Result<TrackMeta, String> {
         if let Some(picture) = tag.pictures().first() {
             meta.cover = inspect_cover(picture.data());
             meta.cover_unreadable = meta.cover.is_none();
+        }
+        if matches!(tagged.file_type(), FileType::Vorbis | FileType::Mp4) {
+            // lofty reports OGG's mandatory vendor string as this, and it can't be removed.
+            let vendor = tagged.file_type() == FileType::Vorbis;
+            meta.other_items = tag
+                .items()
+                .map(|item| item.key())
+                .filter(|key| !(vendor && *key == ItemKey::EncoderSoftware))
+                .collect();
         }
     }
 

@@ -1,3 +1,5 @@
+use lofty::tag::ItemKey;
+
 /// What a device can handle. The scan and repair code only reads this, so a
 /// new device means a new profile, not new logic.
 pub struct DeviceProfile {
@@ -14,6 +16,8 @@ pub struct DeviceProfile {
     pub vorbis_fields: &'static [&'static str],
     /// ID3v2 frames (MP3) the device reads.
     pub id3_frames: &'static [&'static str],
+    /// Fields the device reads in other tag formats (OGG, M4A), by lofty's names.
+    pub tag_items: &'static [ItemKey],
     /// Largest cover side in pixels.
     pub cover_size: u32,
     pub max_path_chars: usize,
@@ -41,6 +45,19 @@ pub const ECHO_MINI: DeviceProfile = DeviceProfile {
     ],
     id3_frames: &[
         "TIT2", "TPE1", "TPE2", "TALB", "TRCK", "TPOS", "TDRC", "TYER", "TCON", "APIC",
+    ],
+    tag_items: &[
+        ItemKey::TrackTitle,
+        ItemKey::TrackArtist,
+        ItemKey::AlbumArtist,
+        ItemKey::AlbumTitle,
+        ItemKey::TrackNumber,
+        ItemKey::TrackTotal,
+        ItemKey::DiscNumber,
+        ItemKey::DiscTotal,
+        ItemKey::RecordingDate,
+        ItemKey::Year,
+        ItemKey::Genre,
     ],
     // 452 px is confirmed on the device. 600 is still an assumption.
     cover_size: 600,

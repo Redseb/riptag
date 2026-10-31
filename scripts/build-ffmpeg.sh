@@ -4,6 +4,7 @@
 # build can't be bundled, as it links dozens of libraries outside the app.
 set -euo pipefail
 
+# Keep licenses/ffmpeg-NOTICE.txt in step with these.
 VERSION=8.0.1
 SHA256=05ee0b03119b45c0bdb4df654b96802e909e0a752f72e4fe3794f487229e5a41
 

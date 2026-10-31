@@ -12,3 +12,9 @@ Requires Node 24 and Rust stable, plus the [Tauri prerequisites](https://tauri.a
 npm install
 npm run tauri dev
 ```
+
+Converting audio needs `ffmpeg` installed. `npm run bundle` builds its own copy into the packaged app.
+
+## License
+
+Riptag is under the [MIT License](LICENSE). The packaged app also includes FFmpeg, under the LGPL 2.1 or later: see [its notice](licenses/ffmpeg-NOTICE.txt).

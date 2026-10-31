@@ -227,7 +227,7 @@ pub fn diagnose_track(
         issues.push(found);
     }
 
-    let extras: BTreeSet<&str> = meta
+    let extras: BTreeSet<String> = meta
         .vorbis_fields
         .iter()
         .filter(|f| !profile.vorbis_fields.contains(&f.as_str()))
@@ -236,7 +236,13 @@ pub fn diagnose_track(
                 .iter()
                 .filter(|f| !profile.id3_frames.contains(&f.as_str())),
         )
-        .map(String::as_str)
+        .cloned()
+        .chain(
+            meta.other_items
+                .iter()
+                .filter(|key| !profile.tag_items.contains(key))
+                .map(|key| format!("{key:?}")),
+        )
         .collect();
     if !extras.is_empty() {
         let mut found = issue(
