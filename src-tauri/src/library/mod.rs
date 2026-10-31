@@ -1,3 +1,4 @@
+mod convert;
 mod cover;
 mod diagnose;
 mod lyrics;

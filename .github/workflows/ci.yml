@@ -25,6 +25,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      # Conversion tests run the real ffmpeg.
+      - if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
       - run: npm ci
       - run: npm test
       - run: npm run build

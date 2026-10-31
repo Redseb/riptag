@@ -3,6 +3,9 @@
 pub struct DeviceProfile {
     pub name: &'static str,
     pub playable_extensions: &'static [&'static str],
+    /// Lossless formats the device can't play, which repair converts to FLAC.
+    /// Lossy formats don't belong here, as FLAC would only hide their losses.
+    pub convert_to_flac: &'static [&'static str],
     /// Vorbis comment fields (FLAC, OGG) the device reads, uppercase.
     pub vorbis_fields: &'static [&'static str],
     /// ID3v2 frames (MP3) the device reads.
@@ -17,6 +20,7 @@ pub const ECHO_MINI: DeviceProfile = DeviceProfile {
     playable_extensions: &[
         "mp3", "ogg", "m4a", "wma", "flac", "ape", "wav", "dsf", "dff",
     ],
+    convert_to_flac: &["aif", "aiff"],
     vorbis_fields: &[
         "TITLE",
         "ARTIST",
